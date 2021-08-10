@@ -40,21 +40,28 @@ class Introduction(Scene):
                                      circles_width=1.5, circles_opacity=1).shift(3*RIGHT+DOWN)
         self.play(Write(ec, rate_func=double_smooth), run_time=5)
         speed = 1
-        ec.add_updater(lambda e, dt: e.set(speed_factor=np.clip(e.speed_factor+speed*dt, 0, 9)))
-        self.wait(20)
+        ec.add_updater(lambda e, dt: e.set(speed_factor=np.clip(e.speed_factor+speed*dt, 0, 11)))
+        self.wait(18)
+        speed = -2
+        self.wait(5)
 
         wavelet_text = Text("Wavelet transform").shift(UP + fourier_shift)
         axes_wavelet = Axes(x_range=[-.5, 1.5, .2], x_length=5,
-                            y_range=[-0.1, 1.5, .2], y_length=3).shift(2 * DOWN + fourier_shift)
-        scale = axes_wavelet.get_graph(lambda x: np.sqrt(2)*(0 <= x < 1), discontinuities=[0, 1], color=RED)
-        wavelet = axes_wavelet.get_graph(lambda x: np.sqrt(2)*(0 <= x < .5) - np.sqrt(2)*(.5 <= x < 1), discontinuities=[0, .5, 1], color=BLUE)
-        speed = -2
+                            y_range=[-1.5, 1.5, .2], y_length=3).shift(2 * DOWN + fourier_shift)
+        sq2 = np.sqrt(2)
+        scale = axes_wavelet.get_line_graph([-.5, 0, 0, 1, 1, 1.5], [0, 0, sq2, sq2, 0, 0], line_color=RED, add_vertex_dots=False)
+        wavelet = DashedVMobject(
+            axes_wavelet.get_line_graph([-.5, 0, 0, .5, .5, 1, 1, 1.5],
+                                        [0, 0, sq2, sq2, -sq2, -sq2, 0, 0],
+                                        line_color=BLUE,
+                                        add_vertex_dots=False)["line_graph"],
+            num_dashes=60
+        ).set_z_index(scale.z_index+1)
         self.play(Transform(fourier_text, wavelet_text))
         self.play(Transform(axes_fourier, axes_wavelet),
                   Transform(sin, scale),
-                  Create(wavelet))
-        while ec.speed_factor > 0:
-            self.wait()
+                  Create(wavelet), run_time=3)
+        self.wait(2)
         shape = ec.get_bg().copy().set_stroke(color=YELLOW, opacity=.5, width=2)
         self.play(FadeOut(ec),
                   FadeIn(shape))
