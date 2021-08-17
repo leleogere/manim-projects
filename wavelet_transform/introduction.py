@@ -1,6 +1,6 @@
 from manim import *
 
-from mob_epicycles import FourierEpicyclesMObject
+from wavelet_mobject_epicycles import FourierEpicyclesMObject
 
 
 class Introduction(Scene):

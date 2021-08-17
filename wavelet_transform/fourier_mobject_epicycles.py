@@ -1,7 +1,7 @@
 from manim import *
+from wavelet_helpers import *
 
-
-class FourierEpicyclesMObject(VMobject):
+class FourierEpicyclesMobject(VMobject):
 
     def __init__(
             self,
@@ -112,7 +112,7 @@ class TestFourier(Scene):
         complex_points = (complex_points - np.mean(complex_points)) / np.max(abs(complex_points)) * 4
 
         # create my epicycles
-        ec = FourierEpicyclesMObject(complex_points, num_coefs=40, speed_factor=0,
+        ec = FourierEpicyclesMobject(complex_points, num_coefs=40, speed_factor=0,
                                      circles_color=BLUE, circles_opacity=1,
                                      background_stroke_opacity=0)
         self.play(Write(ec))
@@ -122,29 +122,3 @@ class TestFourier(Scene):
         self.wait(3*TAU)
         speed = -.2
         self.wait(2*TAU)
-
-
-from manim_fonts import *
-class WordFourier(Scene):
-    def construct(self):
-        def get_shape(char):
-            path = VMobject()
-            shape = Text(char, font="/home/leo/.fonts/n/NOVASOLID_TRIAL___.otf")
-            for sp in shape.family_members_with_points():
-                path.append_points(sp.get_points())
-            return path
-
-        word = VGroup()
-        colors = [RED, BLUE, GREEN, RED, BLUE, GREEN]
-        for char, color in zip("Margot", colors):
-            path = get_shape(char)
-            complex_points = np.array(
-                [complex(*path.point_from_proportion(alpha)[:2]) for alpha in np.arange(0, 1, 1 / 50)])
-            complex_points = (complex_points - np.mean(complex_points)) / np.max(abs(complex_points)) * 1.5
-            ec = FourierEpicyclesMObject(complex_points, speed_factor=1,
-                                         circles_color=color, bg_shape_opacity=0,
-                                         circles_opacity=1).shift(3 * LEFT)
-            word.add(ec)
-
-        self.add(word.arrange(RIGHT))
-        self.wait(20)
