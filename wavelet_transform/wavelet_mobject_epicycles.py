@@ -13,29 +13,33 @@ class WaveletEpicyclesMobject(VMobject):
             L=None,
             speed_factor=.1,
             show_build=False,
+            show_background=True,
             cycles_colors=[RED, BLUE, PINK, GREEN],
-            cycles_config={"stroke_width": 2, "stroke_opacity": 1},
+            cycles_config={"stroke_width": 2, "stroke_opacity": .8},
             vectors_config={"stroke_width": 4, "stroke_opacity": 1},
-            background_config={"color": GRAY_C, "stroke_width": 1, "stroke_opacity": 1},
+            background_config={"stroke_color": GRAY_C, "stroke_width": 1, "stroke_opacity": 1, "fill_opacity": 0},
             trail_config={"stroke_color": YELLOW, "stroke_width": 4, "stroke_opacity": 1},
             **kwargs):
         super().__init__(**kwargs)
         self.mobject = mobject.copy()
         self.hn = hn
         self.N = int(2 ** np.round(np.log(N) / np.log(2)))
-        self.complex_points = [R3_to_complex(self.mobject.point_from_proportion(alpha)) for alpha in np.arange(0, 1, 1/self.N)]
+        self.complex_points = [R3_to_complex(self.mobject.point_from_proportion(alpha)) for alpha in
+                               np.arange(0, 1, 1 / self.N)]
         self.K = K if K is not None else self.N
-        self.L = pywt.dwt_max_level(self.N, len(self.hn)) if L is None else min(L, pywt.dwt_max_level(self.N, len(self.hn)))
+        self.L = pywt.dwt_max_level(self.N, len(self.hn)) if L is None else min(L, pywt.dwt_max_level(self.N,
+                                                                                                      len(self.hn)))
         self.show_build = show_build
-        self.speed_factor = speed_factor
+        self.speed_factor = .1 * speed_factor
         self.cycles = VGroup()
         self.vectors = VGroup()
-        self._init_background(background_config)
+        if show_background:
+            self._init_background(background_config)
         self._init_epicycles(cycles_colors, cycles_config, vectors_config)
         self._init_trail(trail_config)
 
     def _init_background(self, background_config):
-        self.background = VMobject(**background_config).set_points_as_corners(self.mobject.get_all_points())
+        self.background = self.mobject.copy().set_style(**background_config)
         self.add(self.background)
 
     def _init_epicycles(self, cycles_colors, cycles_config, vectors_config):
@@ -46,7 +50,7 @@ class WaveletEpicyclesMobject(VMobject):
         for l in range(0, min(self.K, self.L + 1)):
             print("L =", l)
             func = scale_function_complex if l == 0 else wavelet_function_complex  # scaling function in the first loop, wavelet function after
-            self.cycle_points += [   # interpolate complex points to minimize the number of computations (one per frame)
+            self.cycle_points += [  # interpolate complex points to minimize the number of computations (one per frame)
                 np.interp(
                     np.arange(0, 1, self.speed_factor / config.frame_rate),
                     np.linspace(0, 1, self.N, endpoint=False),
@@ -73,7 +77,7 @@ class WaveletEpicyclesMobject(VMobject):
             c["vect"].become(Line(start_vect, end_vect).match_style(c["vect"]))
             if self.show_build:
                 c["curve"].move_to(c.center_offset + c.previous_cycle())
-                c["curve"].set_stroke(opacity=opacity_function(abs(new_f), 1, .6))
+                c["curve"].set_stroke(opacity=opacity_function(abs(new_f), 1, cycles_config["stroke_opacity"]))
             return c
 
         # create all epicycles
@@ -84,7 +88,8 @@ class WaveletEpicyclesMobject(VMobject):
             current_cycle["vect"] = Line(color=WHITE if self.show_build else self.colors[i], **vectors_config)
             self.vectors.add(current_cycle["vect"])
             if self.show_build:
-                current_cycle["curve"] = VMobject(color=self.colors[i], **cycles_config).set_points_as_corners([complex_to_R3(x) for x in function])
+                current_cycle["curve"] = VMobject(color=self.colors[i], **cycles_config).set_points_as_corners(
+                    [complex_to_R3(x) for x in function] + [complex_to_R3(function[0])])
                 current_cycle.set(center_offset=current_cycle["curve"].get_center())
                 self.cycles.add(current_cycle["curve"])
             current_cycle.set(previous_cycle=self.epicycles[i]["vect"].get_end,
@@ -92,6 +97,7 @@ class WaveletEpicyclesMobject(VMobject):
                               current=0)
             current_cycle.add_updater(lambda c, dt: update_cycle(c))
             self.epicycles.add(current_cycle)
+        self.epicycles.update(.00001)  # first update to move all to the right place
         self.add(self.epicycles)
 
     def _init_trail(self, trail_config):
@@ -115,55 +121,17 @@ class WaveletEpicyclesMobject(VMobject):
         return self.path
 
 
-class TestWavelet(Scene):
-    def construct(self):
-
-        # get an array of complex points
-        N = 50
-        # tex = "$\Sigma$"
-        tex = "§"
-        def get_shape(tex):
-            path = VMobject()
-            shape = Tex(tex)
-            for sp in shape.family_members_with_points():
-                path.append_points(sp.get_points())
-            return path
-        path = get_shape(tex).scale(12)
-
-        # create my epicycles
-        hn = np.zeros(6, dtype=complex)
-        hn[0] = hn[-1] = -(3 + np.sqrt(15) * 1j) / 64 * np.sqrt(2)
-        hn[1] = hn[-2] = (5 - np.sqrt(15) * 1j) / 64 * np.sqrt(2)
-        hn[2] = hn[-3] = (15 + np.sqrt(15) * 1j) / 32 * np.sqrt(2)
-        ec = WaveletEpicyclesMobject(path, hn, N=1000, K=None, L=None, speed_factor=.05,
-                                     show_build=True)
-        # self.play(Write(ec))
-        # self.add(path)
-        self.add(ec)
-        self.wait(10)
-        # speed = .8
-        # ec.add_updater(lambda e, dt: e.set(speed_factor=np.clip(e.speed_factor+speed*dt, 0, 2)))
-        # self.wait(3*TAU)
-        # speed = -.2
-        # self.wait(2*TAU)
+def get_shape(tex):
+    path = VMobject()
+    shape = Tex(tex)
+    for sp in shape.family_members_with_points():
+        path.append_points(sp.get_points())
+    return path
 
 
-class TestWaveletZoomed(ZoomedScene):
-    def __init__(self, **kwargs):
-        super().__init__(
-            zoom_factor=.3,
-            zoomed_display_height=1,
-            zoomed_display_width=6,
-            image_frame_stroke_width=20,
-            zoomed_camera_config={
-                "default_frame_stroke_width": 3,
-                },
-            **kwargs
-        )
+class WaveletScene(Scene):
 
-    def construct(self):
-        tex = "§"
-
+    def set_params(self, tex=r"$\Sigma$", N=512, K=5, L=None, speed_factor=1., show_build=True, show_background=False, duration=20):
         def get_shape(tex):
             path = VMobject()
             shape = Tex(tex)
@@ -171,27 +139,53 @@ class TestWaveletZoomed(ZoomedScene):
                 path.append_points(sp.get_points())
             return path
 
-        path = get_shape(tex).scale(12)
-
-        # create my epicycles
+        path = get_shape(tex).scale(15)
         hn = np.zeros(6, dtype=complex)
         hn[0] = hn[-1] = -(3 + np.sqrt(15) * 1j) / 64 * np.sqrt(2)
         hn[1] = hn[-2] = (5 - np.sqrt(15) * 1j) / 64 * np.sqrt(2)
         hn[2] = hn[-3] = (15 + np.sqrt(15) * 1j) / 32 * np.sqrt(2)
-        ec = WaveletEpicyclesMobject(path, hn, N=1000, K=2, L=None, speed_factor=.05,
-                                     show_build=True)
+        self.wait_duration = duration
+        self.ec_config = {"mobject": path,
+                          "hn": hn,
+                          "N": N,
+                          "K": K,
+                          "L": L,
+                          "speed_factor": speed_factor,
+                          "show_build": show_build,
+                          "show_background": show_background}
+
+    def construct(self):
+        ec = WaveletEpicyclesMobject(**self.ec_config)
         self.add(ec)
-        self.wait(2)
+        self.wait(self.wait_duration)
 
-        zoomed_camera = self.zoomed_camera
-        zoomed_display = self.zoomed_display
-        frame = zoomed_camera.frame
-        zoomed_display_frame = zoomed_display.display_frame
-        frame.move_to(ec.get_vectors()[-1]).add_updater(lambda f, dt: f.move_to(ec.get_vectors()[-1]))
-        frame.set_color(PURPLE)
-        zoomed_display_frame.set_color(RED)
-        zoomed_display.shift(DOWN)
-        self.play(Create(frame))
-        self.activate_zooming()
 
-        self.wait(2)
+class WaveletSceneSlowFull(WaveletScene):
+    def construct(self):
+        self.set_params(speed_factor=.05)
+        super().construct()
+
+
+class WaveletSceneSlowVectors(WaveletScene):
+    def construct(self):
+        self.set_params(speed_factor=.05, show_build=False)
+        super().construct()
+
+
+class WaveletSceneMediumVectors(WaveletScene):
+    def construct(self):
+        self.set_params(speed_factor=.1, show_build=False)
+        super().construct()
+
+
+class WaveletSceneNormalVectors(WaveletScene):
+    def construct(self):
+        self.set_params(speed_factor=.5, show_build=False, duration=40)
+        super().construct()
+
+
+class WaveletSceneCreation(WaveletScene):
+    def construct(self):
+        self.set_params()
+        ec = WaveletEpicyclesMobject(**self.ec_config).suspend_updating()
+        self.play(Write(ec), run_time=20)

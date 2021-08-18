@@ -20,7 +20,7 @@ class MyIndicate(Indicate):
         return target
 
 
-class Haar(Scene):
+class HaarScene(Scene):
     # VARIABLES
     N = 8
     seed = 2
@@ -59,14 +59,14 @@ class Haar(Scene):
         self.dots = line["vertex_dots"][2:-2:2]
         self.signal = line["line_graph"]
         self.approx3_graph = \
-        self.axes.get_line_graph(self.approx3_x, self.approx3_y, add_vertex_dots=False, line_color=RED)[
-            "line_graph"].set_z_index(self.signal.z_index + 1)
+            self.axes.get_line_graph(self.approx3_x, self.approx3_y, add_vertex_dots=False, line_color=RED)[
+                "line_graph"].set_z_index(self.signal.z_index + 1)
         self.approx2_graph = \
-        self.axes.get_line_graph(self.approx2_x, self.approx2_y, add_vertex_dots=False, line_color=RED)[
-            "line_graph"].set_z_index(self.approx3_graph.z_index + 1)
+            self.axes.get_line_graph(self.approx2_x, self.approx2_y, add_vertex_dots=False, line_color=RED)[
+                "line_graph"].set_z_index(self.approx3_graph.z_index + 1)
         self.approx1_graph = \
-        self.axes.get_line_graph(self.approx1_x, self.approx1_y, add_vertex_dots=False, line_color=RED)[
-            "line_graph"].set_z_index(self.approx2_graph.z_index + 1)
+            self.axes.get_line_graph(self.approx1_x, self.approx1_y, add_vertex_dots=False, line_color=RED)[
+                "line_graph"].set_z_index(self.approx2_graph.z_index + 1)
 
     def setup_text_and_tables(self):
         tab_args = {"h_buff": .4, "v_buff": .4, "include_outer_lines": True}
@@ -120,6 +120,8 @@ class Haar(Scene):
         self.setup_signal()
         self.setup_text_and_tables()
 
+
+class HaarDecomposition(HaarScene):
     # HELPERS
     def focus_on_approx_coeffs(self, curve, table):
         corners = curve.get_anchors()[4::2]
@@ -139,8 +141,8 @@ class Haar(Scene):
             prev_line = Line(prev_corners[4 * i], prev_corners[4 * i + 1])
             arrow = Arrow(line.point_from_proportion(.25), prev_line.get_center(),
                           buff=0, max_stroke_width_to_length_ratio=20, max_tip_length_to_length_ratio=.35,
-                          stroke_width=4, color=GREEN, z_index=curve.z_index+1)
-            dot = Dot(line.point_from_proportion(.25), radius=0.05, color=GREEN, z_index=curve.z_index+1)
+                          stroke_width=4, color=GREEN, z_index=curve.z_index + 1)
+            dot = Dot(line.point_from_proportion(.25), radius=0.05, color=GREEN, z_index=curve.z_index + 1)
             self.play(Indicate(table.get_entries((1, i + 1))),
                       FadeIn(VGroup(dot, arrow), rate_func=there_and_back_with_pause),
                       run_time=2)
@@ -206,3 +208,88 @@ class Haar(Scene):
         self.wait(10)
 
 
+class HaarRecomposition(HaarDecomposition):
+
+    def setup_secondary_axes(self):
+        self.scale_axes = Axes(x_range=[-1, self.N+3, 1], x_length=3.2,
+                               y_range=[-1.2, 1.6, .2], y_length=2.5).to_corner(DL, buff=MED_SMALL_BUFF)
+        self.wavelet_axes = self.scale_axes.copy().next_to(self.scale_axes, RIGHT, buff=MED_LARGE_BUFF)
+        self.scale_func_x = [-1, 0, 0, self.N, self.N, self.N+1]
+        self.scale_func_y = [0, 0, 1, 1, 0, 0]
+        self.scale_function = self.scale_axes.get_line_graph(self.scale_func_x, self.scale_func_y, add_vertex_dots=False, line_color=RED)["line_graph"].set_z_index(self.scale_axes.z_index + 1)
+        self.wavelet_func_x = [-1, 0, 0, self.N/2, self.N/2, self.N, self.N, self.N + 1]
+        self.wavelet_func_y = [0, 0, 1, 1, -1, -1, 0, 0]
+        self.wavelet_function = self.wavelet_axes.get_line_graph(self.wavelet_func_x, self.wavelet_func_y, add_vertex_dots=False, line_color=GREEN)["line_graph"].set_z_index(self.wavelet_axes.z_index + 1)
+        self.scale_legend = Text("Scaling function", color=RED).scale(.5).next_to(self.scale_axes, UP)
+        self.wavelet_legend = Text("Wavelet function", color=GREEN).scale(.5).next_to(self.wavelet_axes, UP)
+
+    def setup(self):
+        super().setup()
+        self.setup_secondary_axes()
+
+    def prepare_scene(self):
+        self.add(self.axes,
+                 self.text_signal, self.tab_signal,
+                 self.text3, self.tab3,
+                 self.text2, self.tab2,
+                 self.text1, self.tab1)
+        self.play(self.axes.animate.become(
+            Axes(x_range=[self.points_x[0], self.points_x[-1], 1],
+                 y_range=[min(self.points_y) - 1, max(self.points_y) + 1, 1],
+                 x_length=config.frame_width / 2,
+                 y_length=config.frame_height / 2,
+                 axis_config={"number_scale_value": .5}).to_corner(UL, buff=MED_SMALL_BUFF).add_coordinates()
+        ))
+        self.play(Create(self.scale_axes), Create(self.wavelet_axes))
+        self.wait()
+        self.play(Create(self.scale_function), Write(self.scale_legend), run_time=2)
+        self.wait()
+        self.play(Create(self.wavelet_function), Write(self.wavelet_legend), run_time=2)
+        self.wait()
+        self.play(VGroup(self.text_signal, self.tab_signal, self.text3, self.tab3, self.text2, self.tab2).animate.set_opacity(.1))
+
+    def reconstruction(self):
+        focus = SurroundingRectangle(self.tab1[0].get_entries([1, 1]))
+        self.play(Create(focus))
+        self.wait()
+        y = self.axes.get_y_axis().get_unit_size()
+
+        # def make_a_step(original_curve, entry)
+
+        curr_func = self.scale_function.copy()
+        curr_func.target = self.axes.get_line_graph(self.scale_func_x, self.scale_func_y, add_vertex_dots=False, line_color=RED)["line_graph"]
+        self.play(MoveToTarget(curr_func))
+        curr_num = self.tab1[0].get_entries([1, 1]).copy()
+        curr_num.target = MathTex(curr_num.lines_text.text + r"\times", color=RED).next_to(curr_func, UP)
+        self.play(MoveToTarget(curr_num))
+        self.wait()
+        self.play(curr_func.animate.stretch_to_fit_height(self.approx3[0]*y, about_point=curr_func.get_start()))
+        self.wait()
+        reconstitution = curr_func.copy().set_color(WHITE)
+        self.play(FadeOut(curr_num),
+                  FadeOut(curr_func),
+                  FadeIn(reconstitution))
+        self.wait()
+
+
+        curr_func = self.wavelet_function.copy()
+        print(self.axes.x_range)
+        curr_func.target = (
+            self.axes
+                .get_line_graph(self.wavelet_func_x, self.wavelet_func_y, add_vertex_dots=False, line_color=GREEN)["line_graph"]
+                # .stretch(.5, 0, about_point=curr_func.get_start())
+                .shift((self.axes.c2p(0, self.approx1[0])[1] - self.axes.c2p(0, 0)[1])*UP)
+        )
+        self.play(MoveToTarget(curr_func))
+        # curr_num = self.tab1[0].get_entries([1, 1]).copy()
+        # curr_num.target = MathTex(curr_num.lines_text.text + r"\times", color=RED).next_to(curr_func, UP)
+        # self.play(MoveToTarget(curr_num))
+        # self.wait()
+        # self.play(curr_func.animate.stretch(self.approx3[0], 1, about_point=self.axes.c2p(0, 0)))
+        # self.wait()
+
+    def construct(self):
+        self.prepare_scene()
+        self.wait()
+        self.reconstruction()
+        self.wait(5)
