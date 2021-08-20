@@ -2,6 +2,9 @@ from manim import *
 from wavelet_helpers import *
 
 
+########################################################################################################################
+
+
 class ScaleWaveletFunctionsDb2(Scene):
     N = 1024
     wavelet = "db2"
@@ -16,7 +19,7 @@ class ScaleWaveletFunctionsDb2(Scene):
                     y_range=[y_min, self.y_min_real, .02])
         scale_func_graph = axes.get_line_graph(range(self.N), scale_func_points, line_color=RED, add_vertex_dots=False)["line_graph"]
         wavelet_func_graph = axes.get_line_graph(range(self.N), wavelet_func_points, line_color=GREEN, add_vertex_dots=False)["line_graph"]
-        title = Paragraph("Characteristic functions of", "Daubechies wavelets 2", alignment="center").scale(.8).to_corner(UR)
+        title = Paragraph("Characteristic functions of", "Daubechies 2 wavelets", alignment="center").scale(.8).to_corner(UR)
         scale_legend = Text("Scaling function", color=RED).move_to(axes.c2p(200, .1)).scale(.7)
         wavelet_legend = Text("Wavelet function", color=GREEN).move_to(axes.c2p(200, -.04)).scale(.7)
         self.play(Create(axes), Write(title), run_time=2)

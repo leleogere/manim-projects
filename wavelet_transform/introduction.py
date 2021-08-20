@@ -1,6 +1,8 @@
 from manim import *
-
 from fourier_mobject_epicycles import FourierEpicyclesMobject
+
+
+########################################################################################################################
 
 
 class Introduction(Scene):
@@ -54,7 +56,7 @@ class Introduction(Scene):
         path = get_shape("$\Sigma$")
         complex_points = np.array([complex(*path.point_from_proportion(alpha)[:2]) for alpha in np.arange(0, 1, 1 / 150)])
         complex_points = (complex_points - np.mean(complex_points)) / np.max(abs(complex_points)) * 3
-        ec = FourierEpicyclesMobject(complex_points, num_coefs=50, speed_factor=0,
+        ec = FourierEpicyclesMobject(complex_points, num_coefs=120, speed_factor=0,
                                      color=YELLOW, vectors_width=2, bg_shape_opacity=0,
                                      circles_width=1.5, circles_opacity=1).shift(3*RIGHT+DOWN)
         self.play(Write(ec, rate_func=double_smooth), run_time=5)
